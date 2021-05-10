@@ -6,6 +6,7 @@ import random
 import re
 import subprocess
 import sys
+import redis
 from datetime import datetime
 
 import psutil
@@ -49,7 +50,11 @@ def compute_priority(phase, gb_free, n_plots):
 
 def get_archdir_freebytes(arch_cfg):
     archdir_freebytes = {}
-    df_cmd = ('ssh %s@%s df -aBK | grep " %s/"' %
+    if arch_cfg.rsyncd_host == "localhost":
+        df_cmd = ('ssh %s@%s df -a | grep "%s"' %
+        (arch_cfg.rsyncd_user, arch_cfg.rsyncd_host, arch_cfg.rsyncd_path) )
+    else:
+        df_cmd = ('ssh %s@%s df -ab | grep "%s"' %
         (arch_cfg.rsyncd_user, arch_cfg.rsyncd_host, arch_cfg.rsyncd_path) )
     with subprocess.Popen(df_cmd, shell=True, stdout=subprocess.PIPE) as proc:
         for line in proc.stdout.readlines():
@@ -57,7 +62,7 @@ def get_archdir_freebytes(arch_cfg):
             if fields[3] == b'-':
                 # not actually mounted
                 continue
-            freebytes = int(fields[3][:-1]) * 1024  # Strip the final 'K'
+            freebytes = int(fields[3]) * 1024  # Strip the final 'K'
             archdir = (fields[5]).decode('ascii')
             archdir_freebytes[archdir] = freebytes
     return archdir_freebytes
@@ -66,8 +71,8 @@ def rsync_dest(arch_cfg, arch_dir):
     rsync_path = arch_dir.replace(arch_cfg.rsyncd_path, arch_cfg.rsyncd_module)
     if rsync_path.startswith('/'):
         rsync_path = rsync_path[1:]  # Avoid dup slashes.  TODO use path join?
-    rsync_url = 'rsync://%s@%s:12000/%s' % (
-            arch_cfg.rsyncd_user, arch_cfg.rsyncd_host, rsync_path)
+    rsync_url = 'rsync://%s@%s:873/plots' % (
+            arch_cfg.rsyncd_user, arch_cfg.rsyncd_host)
     return rsync_url
 
 # TODO: maybe consolidate with similar code in job.py?
@@ -132,9 +137,22 @@ def archive(dir_cfg, all_jobs):
     
     msg = 'Found %s with ~%d GB free' % (archdir, freespace / plot_util.GB)
 
+    # Figure out which customer this plot file should go into
+    redis_plots = redis.Redis(host='localhost', port=6379, db=2, decode_responses=True, charset="utf-8")
+    customers = redis_plots.keys()
+
+    dest = rsync_dest(dir_cfg.archive, archdir)
+
+    for customer in customers:
+        _plots = list(redis_plots.hgetall(customer).keys())
+        for _plot in _plots:
+            if _plot in chosen_plot:
+                dest = dest + "/customer/%s/" % customer
+
+    
     bwlimit = dir_cfg.archive.rsyncd_bwlimit
     throttle_arg = ('--bwlimit=%d' % bwlimit) if bwlimit else ''
     cmd = ('rsync %s --remove-source-files -P %s %s' %
-            (throttle_arg, chosen_plot, rsync_dest(dir_cfg.archive, archdir)))
+            (throttle_arg, chosen_plot, dest))
 
     return (True, cmd)

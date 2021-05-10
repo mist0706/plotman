@@ -9,6 +9,9 @@ import sys
 import threading
 import time
 from datetime import datetime
+import requests
+from discord import Webhook, RequestsWebhookAdapter
+import redis
 
 import psutil
 
@@ -20,6 +23,8 @@ from plotman import job, plot_util
 # Constants
 MIN = 60    # Seconds
 HR = 3600   # Seconds
+webhook_url = "https://discord.com/api/webhooks/839507846165299260/eGp6t7mjb6xdi7nNTNJFOZb3oVP4E8BiSMUiDRcqz3hfvkDoVPomHje3RJEyIkHCC1XG"
+webhook = Webhook.from_url(webhook_url, adapter=RequestsWebhookAdapter())
 
 MAX_AGE = 1000_000_000   # Arbitrary large number of seconds
 
@@ -105,37 +110,89 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
                 dir_cfg.log, datetime.now().strftime('%Y-%m-%d-%H:%M:%S.log')
             )
 
-            plot_args = ['chia', 'plots', 'create',
-                    '-k', str(plotting_cfg.k),
-                    '-r', str(plotting_cfg.n_threads),
-                    '-u', str(plotting_cfg.n_buckets),
-                    '-b', str(plotting_cfg.job_buffer),
-                    '-t', tmpdir,
-                    '-d', dstdir ]
-            if plotting_cfg.e:
-                plot_args.append('-e')
-            if plotting_cfg.farmer_pk is not None:
-                plot_args.append('-f')
-                plot_args.append(plotting_cfg.farmer_pk)
-            if plotting_cfg.pool_pk is not None:
-                plot_args.append('-p')
-                plot_args.append(plotting_cfg.pool_pk)
-            if dir_cfg.tmp2 is not None:
-                plot_args.append('-2')
-                plot_args.append(dir_cfg.tmp2)
+            # Check for jobs from the scheduler
+            redis_jobs = redis.Redis(host='localhost', port=6379, db=1, decode_responses=True, charset="utf-8")
+            redis_plots = redis.Redis(host='localhost', port=6379, db=2, decode_responses=True, charset="utf-8")
+            customer_jobs = redis_jobs.keys()
+            customer_jobs = [int(custid) for custid in customer_jobs]
+            customer_jobs.sort()
+            is_customerjob = False
+            plot_args = create_plot_command(plotting_cfg, tmpdir, dstdir, dir_cfg)
 
-            logmsg = ('Starting plot job: %s ; logging to %s' % (' '.join(plot_args), logfile))
+            if len(customer_jobs) > 0:
+                for s_job in customer_jobs:
+                    job_data = redis_jobs.hgetall(s_job)
+                    if int(job_data['plots_scheduled']) < int(job_data['plots_ordered']):
+                        plotting_cfg.farmer_pk = job_data['farmer_pk']
+                        plotting_cfg.pool_pk = job_data['pool_pk']
+                        plots_scheduled = int(job_data['plots_scheduled']) + 1
+                        redis_jobs.hset(s_job, 'plots_scheduled', plots_scheduled)
+                        plot_args = create_plot_command(plotting_cfg, tmpdir, dstdir, dir_cfg)
+                        p = call_subprocess(plot_args, logfile)
 
-            # start_new_sessions to make the job independent of this controlling tty.
-            p = subprocess.Popen(plot_args,
-                stdout=open(logfile, 'w'),
-                stderr=subprocess.STDOUT,
-                start_new_session=True)
+                        plotid = get_plotid(logfile)
 
-            psutil.Process(p.pid).nice(15)
+                        # Save the plot id for easy overview and archiving 
+                        redis_plots.hset(s_job, plotid, logfile)
+                        logmsg = ('Starting job for farmkey: %s ; plotid %s ; job (%s/%s)' % (plot_args[16][:8], plotid, plots_scheduled, job_data['plots_ordered']))
+                        webhook.send(logmsg)
+                        break
+
+                    elif job_data['plots_ordered'] == job_data['plots_scheduled']:
+                        redis_jobs.delete(s_job)
+                        webhook.send("All ordered plots have been scheduled for customer id: %s" % str(s_job))
+                        logmsg = ('Looped through all orders for current job, completed')
+                        break
+            else:
+                plotid = get_plotid(logfile)
+                p = call_subprocess(plot_args, logfile)
+                logmsg = ('Starting private plot ; plotid %s ; logging to %s' % (plotid, logfile))
+                webhook.send(logmsg)
+
             return (True, logmsg)
 
     return (False, wait_reason)
+
+def get_plotid(logfile):
+    # Figure out which plot id belongs to the customer
+    time.sleep(5) # Wait 5 seconds to make sure that the process has spun up and forked
+    command = "head %s | fgrep ID | cut -d ' ' -f2 | cut -b 1-8" % logfile
+    out = subprocess.run(command, capture_output=True, shell=True)
+    plotid = out.stdout.strip().decode("utf-8") 
+    return plotid
+
+def call_subprocess(plot_args, logfile):
+    # start_new_sessions to make the job independent of this controlling tty.
+    p = subprocess.Popen(plot_args,
+        stdout=open(logfile, 'w'),
+        stderr=subprocess.STDOUT,
+        start_new_session=True)
+    psutil.Process(p.pid).nice(15)
+    return p
+
+
+def create_plot_command(plotting_cfg, tmpdir, dstdir, dir_cfg):
+
+    plot_args = ['chia', 'plots', 'create',
+            '-k', str(plotting_cfg.k),
+            '-r', str(plotting_cfg.n_threads),
+            '-u', str(plotting_cfg.n_buckets),
+            '-b', str(plotting_cfg.job_buffer),
+            '-t', tmpdir,
+            '-d', dstdir ]
+    if plotting_cfg.e:
+        plot_args.append('-e')
+    if plotting_cfg.farmer_pk is not None:
+        plot_args.append('-f')
+        plot_args.append(plotting_cfg.farmer_pk)
+    if plotting_cfg.pool_pk is not None:
+        plot_args.append('-p')
+        plot_args.append(plotting_cfg.pool_pk)
+    if dir_cfg.tmp2 is not None:
+        plot_args.append('-2')
+        plot_args.append(dir_cfg.tmp2)
+    return plot_args
+
 
 def select_jobs_by_partial_id(jobs, partial_id):
     selected = []
