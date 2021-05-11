@@ -125,6 +125,7 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
                     if int(job_data['plots_scheduled']) < int(job_data['plots_ordered']):
                         plotting_cfg.farmer_pk = job_data['farmer_pk']
                         plotting_cfg.pool_pk = job_data['pool_pk']
+                        plotting_cfg.k = job_data['size']
                         plots_scheduled = int(job_data['plots_scheduled']) + 1
                         redis_jobs.hset(s_job, 'plots_scheduled', plots_scheduled)
                         plot_args = create_plot_command(plotting_cfg, tmpdir, dstdir, dir_cfg)

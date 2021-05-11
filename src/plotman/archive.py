@@ -142,17 +142,17 @@ def archive(dir_cfg, all_jobs):
     customers = redis_plots.keys()
 
     dest = rsync_dest(dir_cfg.archive, archdir)
-
+   
     for customer in customers:
         _plots = list(redis_plots.hgetall(customer).keys())
         for _plot in _plots:
             if _plot in chosen_plot:
-                dest = dest + "/customer/%s/" % customer
-
+                dest = "rsync://MIST_@lampberry.larsson.lol:873/plots/customer/%s/" % customer
+    
     
     bwlimit = dir_cfg.archive.rsyncd_bwlimit
     throttle_arg = ('--bwlimit=%d' % bwlimit) if bwlimit else ''
-    cmd = ('rsync %s --remove-source-files -P %s %s' %
+    cmd = ('screen -d -m rsync %s --remove-source-files -P %s %s' %
             (throttle_arg, chosen_plot, dest))
 
     return (True, cmd)
