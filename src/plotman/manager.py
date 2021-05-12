@@ -111,8 +111,8 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
             )
 
             # Check for jobs from the scheduler
-            redis_jobs = redis.Redis(host='localhost', port=6379, db=1, decode_responses=True, charset="utf-8")
-            redis_plots = redis.Redis(host='localhost', port=6379, db=2, decode_responses=True, charset="utf-8")
+            redis_jobs = redis.Redis(host='localhost', port=6379, db=1, decode_responses=True, charset="utf-8", password="04ea9f780f686b7046ed0677edeb7d77")
+            redis_plots = redis.Redis(host='localhost', port=6379, db=2, decode_responses=True, charset="utf-8", password="04ea9f780f686b7046ed0677edeb7d77")
             customer_jobs = redis_jobs.keys()
             customer_jobs = [int(custid) for custid in customer_jobs]
             customer_jobs.sort()
@@ -140,6 +140,8 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
                         break
 
                     elif job_data['plots_ordered'] == job_data['plots_scheduled']:
+                        plots_scheduled = int(job_data['plots_scheduled']) + 1
+                        redis_jobs.hset(s_job, 'plots_scheduled', plots_scheduled)
                         redis_jobs.delete(s_job)
                         webhook.send("All ordered plots have been scheduled for customer id: %s" % str(s_job))
                         logmsg = ('Looped through all orders for current job, completed')
