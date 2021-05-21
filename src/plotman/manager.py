@@ -142,7 +142,6 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
                     elif job_data['plots_ordered'] == job_data['plots_scheduled']:
                         plots_scheduled = int(job_data['plots_scheduled']) + 1
                         redis_jobs.hset(s_job, 'plots_scheduled', plots_scheduled)
-                        redis_jobs.delete(s_job)
                         webhook.send("All ordered plots have been scheduled for customer id: %s" % str(s_job))
                         logmsg = ('Looped through all orders for current job, completed')
                         break
