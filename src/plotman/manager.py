@@ -23,7 +23,7 @@ from plotman import job, plot_util
 # Constants
 MIN = 60    # Seconds
 HR = 3600   # Seconds
-webhook_url = "https://discord.com/api/webhooks/839507846165299260/eGp6t7mjb6xdi7nNTNJFOZb3oVP4E8BiSMUiDRcqz3hfvkDoVPomHje3RJEyIkHCC1XG"
+webhook_url = "https://discord.com/api/webhooks/845272899836837898/DhAspjgmrKEx2I-gB6Os6uCI45rjkdiIOBtgiHCWxM9i_H8quOzbeAOvgXSPdV3qX5_i"
 webhook = Webhook.from_url(webhook_url, adapter=RequestsWebhookAdapter())
 
 MAX_AGE = 1000_000_000   # Arbitrary large number of seconds
@@ -111,8 +111,8 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
             )
 
             # Check for jobs from the scheduler
-            redis_jobs = redis.Redis(host='localhost', port=6379, db=1, decode_responses=True, charset="utf-8", password="04ea9f780f686b7046ed0677edeb7d77")
-            redis_plots = redis.Redis(host='localhost', port=6379, db=2, decode_responses=True, charset="utf-8", password="04ea9f780f686b7046ed0677edeb7d77")
+            redis_jobs = redis.Redis(host='10.2.2.2', port=6379, db=1, decode_responses=True, charset="utf-8")
+            redis_plots = redis.Redis(host='10.2.2.2', port=6379, db=2, decode_responses=True, charset="utf-8")
             customer_jobs = redis_jobs.keys()
             customer_jobs = [int(custid) for custid in customer_jobs]
             customer_jobs.sort()

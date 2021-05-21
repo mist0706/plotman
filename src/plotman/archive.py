@@ -138,8 +138,7 @@ def archive(dir_cfg, all_jobs):
     msg = 'Found %s with ~%d GB free' % (archdir, freespace / plot_util.GB)
 
     # Figure out which customer this plot file should go into
-    redis_plots = redis.Redis(host='localhost', port=6379, db=2, decode_responses=True, charset="utf-8", password="04ea9f780f686b7046ed0677edeb7d77")
-    #redis_jobs = redis.Redis(host='localhost', port=6379, db=1, decode_responses=True, charset="utf-8", password="04ea9f780f686b7046ed0677edeb7d77")
+    redis_plots = redis.Redis(host='10.2.2.2', port=6379, db=2, decode_responses=True, charset="utf-8")
     customers = redis_plots.keys()
 
     dest = rsync_dest(dir_cfg.archive, archdir)
