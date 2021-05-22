@@ -85,8 +85,17 @@ class UserInterface:
     use_stty_size: bool
 
 @dataclass
+class Distribution:
+    redis_pass: str
+    redis_host: str
+    archive_path: str
+    archive_backup: str
+
+@dataclass
 class PlotmanConfig:
     user_interface: UserInterface
     directories: Directories
     scheduling: Scheduling
     plotting: Plotting
+    distribution: Distribution
+
