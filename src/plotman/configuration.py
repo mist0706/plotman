@@ -88,8 +88,11 @@ class UserInterface:
 class Distribution:
     redis_pass: str
     redis_host: str
+    redis_jobs: int
+    redis_plots: int
     archive_path: str
     archive_backup: str
+    webhook_url: str
 
 @dataclass
 class PlotmanConfig:
