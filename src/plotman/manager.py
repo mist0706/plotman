@@ -152,7 +152,6 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
                 plotid = get_plotid(logfile)
                 p = call_subprocess(plot_args, logfile)
                 logmsg = ('Starting private plot ; plotid %s ; logging to %s' % (plotid, logfile))
-                webhook.send(logmsg)
 
             return (True, logmsg)
 
