@@ -121,7 +121,7 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
             customer_jobs.sort()
             is_customerjob = False
             plot_args = create_plot_command(plotting_cfg, tmpdir, dstdir, dir_cfg)
-
+            logmsg = "Default value, something went wrong"
             if len(customer_jobs) > 0:
                 for s_job in customer_jobs:
                     job_data = redis_jobs.hgetall(s_job)
