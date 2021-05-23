@@ -121,7 +121,6 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
             customer_jobs.sort()
             is_customerjob = False
             plot_args = create_plot_command(plotting_cfg, tmpdir, dstdir, dir_cfg)
-            logmsg = "Default value, something went wrong"
             if len(customer_jobs) > 0:
                 for s_job in customer_jobs:
                     job_data = redis_jobs.hgetall(s_job)
@@ -148,6 +147,8 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
                         webhook.send("All ordered plots have been scheduled for customer id: %s" % str(s_job))
                         logmsg = ('Looped through all orders for current job, completed')
                         break
+                logmsg = ('No new customer jobs, idling 2 minutes')
+                time.sleep(120)
             else:
                 plotid = get_plotid(logfile)
                 p = call_subprocess(plot_args, logfile)
