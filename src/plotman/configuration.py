@@ -93,6 +93,7 @@ class Distribution:
     archive_path: str
     archive_backup: str
     webhook_url: str
+    bwlimit: int
 
 @dataclass
 class PlotmanConfig:
