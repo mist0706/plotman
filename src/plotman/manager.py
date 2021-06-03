@@ -146,7 +146,7 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
                         break
 
                     elif job_data['quantity'] == job_data['plots_scheduled']:
-                        webhook.send("All ordered plots have been scheduled for customer id: %s" % str(s_job))
+                        #webhook.send("All ordered plots have been scheduled for customer id: %s" % str(s_job))
                         #redis_jobs.delete(s_job)
                         logmsg = ('Looped through all orders for current job, completed')
                         break
