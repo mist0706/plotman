@@ -125,6 +125,9 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
             if len(customer_jobs) > 0:
                 for s_job in customer_jobs:
                     job_data = redis_jobs.hgetall(s_job)
+                    if job_data.get('completed', 'False') == "True":
+                        continue
+
                     if int(job_data['plots_scheduled']) < int(job_data['quantity']):
                         plotting_cfg.farmer_pk = job_data['farmer_public_key']
                         plotting_cfg.pool_pk = job_data['pool_public_key']
@@ -146,8 +149,8 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
                         break
 
                     elif job_data['quantity'] == job_data['plots_scheduled']:
-                        #webhook.send("All ordered plots have been scheduled for customer id: %s" % str(s_job))
-                        #redis_jobs.delete(s_job)
+                        webhook.send("All ordered plots have been scheduled for order id: %s" % str(s_job))
+                        redis_jobs.hset(s_job, 'completed', "True")
                         logmsg = ('Looped through all orders for current job, completed')
                         break
             else:
