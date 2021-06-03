@@ -125,9 +125,9 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
             if len(customer_jobs) > 0:
                 for s_job in customer_jobs:
                     job_data = redis_jobs.hgetall(s_job)
-                    if int(job_data['plots_scheduled']) < int(job_data['plots_ordered']):
-                        plotting_cfg.farmer_pk = job_data['farmer_pk']
-                        plotting_cfg.pool_pk = job_data['pool_pk']
+                    if int(job_data['plots_scheduled']) < int(job_data['quantity']):
+                        plotting_cfg.farmer_pk = job_data['farmer_public_key']
+                        plotting_cfg.pool_pk = job_data['pool_public_key']
                         plotting_cfg.k = job_data.get('size', '32')
                         plots_scheduled = int(job_data['plots_scheduled']) + 1
                         redis_jobs.hset(s_job, 'plots_scheduled', plots_scheduled)
@@ -136,16 +136,18 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
 
                         plotid = get_plotid(logfile)
 
-                        # Save the plot id for easy overview and archiving 
-                        redis_plots.hset(s_job, plotid, logfile)
-                        logmsg = ('Starting job for farmkey: %s ; plotid %s ; job (%s/%s)' % (plot_args[16][:8], plotid, plots_scheduled, job_data['plots_ordered']))
+                        # Save the plot id for easy overview and archiving
+                        redis_plots.hset(plotid, 'id', job_data['id'])
+                        redis_plots.hset(plotid, 'farmer_public_key', job_data['farmer_public_key'])
+                        redis_plots.hset(plotid, 'logfile', logfile)
+                        logmsg = ('Starting job for farmkey: %s ; plotid %s ; job (%s/%s)' % (plot_args[16][:8], plotid, plots_scheduled, job_data['quantity']))
+                        post_plot(job_data,  plotid)
                         webhook.send(logmsg)
                         break
 
-                    elif job_data['plots_ordered'] == job_data['plots_scheduled']:
-                        plots_scheduled = int(job_data['plots_scheduled']) + 1
-                        redis_jobs.hset(s_job, 'plots_scheduled', plots_scheduled)
+                    elif job_data['quantity'] == job_data['plots_scheduled']:
                         webhook.send("All ordered plots have been scheduled for customer id: %s" % str(s_job))
+                        #redis_jobs.delete(s_job)
                         logmsg = ('Looped through all orders for current job, completed')
                         break
             else:
@@ -156,10 +158,19 @@ def maybe_start_new_plot(dir_cfg, sched_cfg, plotting_cfg):
 
     return (False, wait_reason)
 
+def post_plot(job_data, plotid):
+    payload = {
+        "plot_id": plotid,
+        "order_id": job_data['id'],
+        "phase": 1,
+        "user_id": job_data['user_id']}
+    data = requests.post("https://expressplots.com/api/plots", json=payload)
+    return data
+
 def get_plotid(logfile):
     # Figure out which plot id belongs to the customer
     time.sleep(5) # Wait 5 seconds to make sure that the process has spun up and forked
-    command = "head %s | fgrep ID | cut -d ' ' -f2 | cut -b 1-8" % logfile
+    command = "head %s | fgrep ID | cut -d ' ' -f2" % logfile
     out = subprocess.run(command, capture_output=True, shell=True)
     plotid = out.stdout.strip().decode("utf-8") 
     return plotid
