@@ -29,7 +29,7 @@ MAX_AGE = 1000_000_000   # Arbitrary large number of seconds
 cfg = configuration.get_validated_configs()
 webhook_url = cfg.distribution.webhook_url
 webhook = Webhook.from_url(webhook_url, adapter=RequestsWebhookAdapter())
-head = {'Authorization': 'Bearer ' + "2|zQZJy57KHCacsYDbdSuzvhgjg0nkGXaQaPsTEWG8"}
+head = {'Authorization': 'Bearer ' + "1|QEBP58QcAF2KDUtdALP0kBV1OTQpsRWNqtC70Vj5"}
 
 def dstdirs_to_furthest_phase(all_jobs):
     '''Return a map from dst dir to a phase tuple for the most progressed job
