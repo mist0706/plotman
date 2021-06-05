@@ -29,7 +29,7 @@ MAX_AGE = 1000_000_000   # Arbitrary large number of seconds
 cfg = configuration.get_validated_configs()
 webhook_url = cfg.distribution.webhook_url
 webhook = Webhook.from_url(webhook_url, adapter=RequestsWebhookAdapter())
-
+head = {'Authorization': 'Bearer ' + "2|zQZJy57KHCacsYDbdSuzvhgjg0nkGXaQaPsTEWG8"}
 
 def dstdirs_to_furthest_phase(all_jobs):
     '''Return a map from dst dir to a phase tuple for the most progressed job
@@ -167,7 +167,7 @@ def post_plot(job_data, plotid):
         "order_id": job_data['id'],
         "phase": 1,
         "user_id": job_data['user_id']}
-    data = requests.post("https://expressplots.com/api/plots", json=payload)
+    data = requests.post("https://expressplots.com/api/plots", json=payload, headers=head)
     return data
 
 def get_plotid(logfile):
